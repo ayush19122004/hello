@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Product | Smart Recs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#4f46e5',
+                        'secondary': '#f97316',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 font-sans">
+
+    <nav class="bg-white shadow-md sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <a href="{{ url_for('index') }}" class="text-3xl font-extrabold text-primary tracking-tight">XYZ</a>
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('index') }}" class="text-gray-900 hover:text-primary transition font-medium">Home</a>
+                    <a href="{{ url_for('main') }}" class="text-gray-900 hover:text-primary transition font-medium">Search</a>
+                    <a href="{{ url_for('add') }}" class="text-primary font-bold border-b-2 border-primary">Add Product</a>
+
+                    {% if session.username %}
+                        <span class="text-sm font-semibold text-gray-700 hidden sm:inline">Hello, {{ session.username }}!</span>
+                        <a href="{{ url_for('logout') }}" class="ml-4 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg shadow-md">
+                            Sign Out
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 border-b pb-3">
+            ➕ Add a New Product
+        </h1>
+
+        <div class="bg-white p-8 rounded-xl shadow-xl border border-gray-100">
+
+            <form action="{{ url_for('add') }}" method="POST" class="space-y-6">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Product Title *</label>
+                    <input type="text" name="title" required class="mt-1 block w-full px-4 py-2 border rounded-lg">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Brand *</label>
+                        <input type="text" name="brand" required class="mt-1 block w-full px-4 py-2 border rounded-lg">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Category *</label>
+                        <input type="text" name="category" required class="mt-1 block w-full px-4 py-2 border rounded-lg">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea name="description" id="descBox" rows="4"
+                        class="mt-1 block w-full px-4 py-2 border rounded-lg"></textarea>
+                </div>
+
+                <!-- 🎯 LIVE RATING RESULT -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Predicted Rating</label>
+                    <div id="ratingOutput"
+                        class="mt-2 inline-block px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold">
+                        Type
+                    </div>
+                </div>
+
+                <!-- Hidden field to store predicted rating -->
+                <input type="hidden" name="overall" id="hiddenRating">
+
+                <button type="submit"
+                    class="w-full px-6 py-3 text-base font-bold text-white bg-secondary rounded-lg shadow-md">
+                    Submit Product
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // LIVE AJAX prediction
+        document.getElementById("descBox").addEventListener("input", function () {
+            let text = this.value;
+
+            fetch("/predict_rating", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: text })
+            })
+            .then(res => res.json())
+            .then(data => {
+                let rating = data.rating;
+
+                const output = document.getElementById("ratingOutput");
+                const hidden = document.getElementById("hiddenRating");
+
+                hidden.value = rating; // store for backend
+
+                if (rating === "High") {
+                    output.innerHTML = "High ⭐";
+                    output.className =
+                        "mt-2 inline-block px-4 py-2 rounded-lg bg-green-200 text-green-700 font-bold";
+                } else {
+                    output.innerHTML = "Low ⬇";
+                    output.className =
+                        "mt-2 inline-block px-4 py-2 rounded-lg bg-red-200 text-red-700 font-bold";
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>

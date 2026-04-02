@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Recs | Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#4f46e5', /* Indigo */
+                        'secondary': '#f97316', /* Orange */
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Base styling for the star rating */
+        .star-rating {
+            color: #fbbf24; /* Amber-400 */
+        }
+        /* Custom SVG for star appearance */
+        .star-icon {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            vertical-align: text-bottom;
+            fill: currentColor;
+        }
+        /* Tailwind modal utility classes */
+        .modal {
+            display: none;
+        }
+        .modal-active {
+            display: flex;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <nav class="bg-white shadow-md sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex-shrink-0">
+                    <a href="{{ url_for('index') }}" class="text-3xl font-extrabold text-primary tracking-tight">
+                        XYZ<span class="text-secondary"></span>
+                    </a>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('index') }}" class="text-gray-900 hover:text-primary transition duration-150 font-medium">Home</a>
+                    <a href="{{ url_for('main') }}" class="text-primary font-bold transition duration-150 border-b-2 border-primary">Search</a>
+                    
+                    <button class="text-gray-900 hover:text-primary transition duration-150 font-medium" data-modal-target="#settingsModal">Settings</button>
+
+                    {% if session.username %}
+                        <span class="text-sm font-semibold text-gray-700 hidden sm:inline">Hello, {{ session.username }}!</span>
+                        <a href="{{ url_for('logout') }}" class="ml-4 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
+                            Sign Out
+                        </a>
+                    {% else %}
+                        <button class="px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-indigo-50 transition duration-150" data-modal-target="#signupModal">
+                            Sign Up
+                        </button>
+                        <button class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md" data-modal-target="#signinModal">
+                            Sign In
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mb-12 border border-gray-100">
+            <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">Content-Based Product Search</h1>
+            <form action="/recommendations" method="post" class="flex flex-col md:flex-row justify-center items-center gap-4">
+                <input type="text" class="w-full md:flex-grow px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-primary focus:border-primary transition duration-150 shadow-md" name="prod" placeholder="Search for products (e.g., 'Sony Bravia TV' or 'heavy duty washer')..." required>
+                <input type="text" class="w-full md:flex-grow px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-primary focus:border-primary transition duration-150 shadow-md" name="review" placeholder="Optional: Add a review (e.g., 'The TV has a great picture but poor sound')... (for sentiment)" >
+                <input type="number" class="w-full md:w-32 px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-primary focus:border-primary transition duration-150 shadow-md" name="nbr" placeholder="Count" value="10" min="1" max="25">
+                <button type="submit" class="w-full md:w-auto px-6 py-3 text-lg font-bold text-white bg-secondary rounded-xl hover:bg-orange-600 transition duration-300 shadow-2xl">
+                    Get Recommendations
+                </button>
+            </form>
+        </div>
+        {% if message %}
+        <div class="bg-indigo-100 border border-indigo-400 text-indigo-700 px-4 py-3 rounded-lg relative mb-8" role="alert">
+            <strong class="font-bold">Info:</strong>
+            <span class="block sm:inline ml-2">{{ message }}</span>
+        </div>
+        {% endif %}
+
+        {% if sentiment %}
+        <div class="text-center mb-8 p-3 bg-white rounded-xl shadow-md">
+            <p class="text-lg font-semibold text-gray-800">Review Sentiment for Search Term:</p>
+            <span class="text-2xl font-bold 
+                {% if sentiment == 'POSITIVE' %}
+                    text-green-600
+                {% elif sentiment == 'NEGATIVE' %}
+                    text-red-600
+                {% else %}
+                    text-gray-600
+                {% endif %}
+            ">{{ sentiment }}</span>
+        </div>
+        {% endif %}
+
+        {% if not content_based_rec.empty %}
+        <section>
+            <h2 class="text-3xl font-extrabold text-gray-900 mb-8 flex items-center tracking-tight">
+                <svg class="star-icon w-8 h-8 mr-3 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                Content-Based Recommendations
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                {% for index, product in content_based_rec.iterrows() %}
+                <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100 flex flex-col h-full hover:shadow-2xl transition duration-300 transform hover:-translate-y-1">
+                    
+                    <img src="{{ product['ImageURL'] }}" 
+                         onerror="this.onerror=null; this.src='https://placehold.co/600x400/818CF8/FFFFFF?text=No+Image'; this.style.backgroundColor='#eef2ff';"
+                         class="h-48 w-full object-cover rounded-t-xl mb-4" 
+                         alt="{{ product['title'] }}">
+                    
+                    <p class="text-xs font-semibold text-gray-500 mb-1 uppercase">{{ product['brand'] }}</p>
+                    
+                    <h3 class="text-lg font-bold text-gray-900 mb-2 leading-snug flex-grow">
+                        <a href="{{ url_for('product_detail', product_id=index) }}" class="hover:text-primary transition duration-150">
+                            {{ truncate(product['title'], 40) }}
+                        </a>
+                    </h3>
+
+                    <div class="flex items-center mb-2">
+                        {% set rating_key = 'overall' if 'overall' in product else 'rating' %}
+                        {% set rating_value = product[rating_key] if rating_key in product else 0 %}
+                        {% set full_stars = rating_value|round(0)|int %}
+
+                        <span class="star-rating text-lg font-bold mr-2">{{ "★" * full_stars }}</span>
+                        <span class="text-sm text-gray-500">({{ rating_value }})</span>
+                    </div>
+
+                    <p class="text-sm text-gray-600 mb-3">Reviews: {{ product['reviewCount'] if 'reviewCount' in product else 0 }}</p>
+
+                    <p class="text-xl font-extrabold text-primary mb-4">
+                        {% set price_value = product['random_price'] if 'random_price' in product else 1999 %}
+                        ₹{{ price_value | comma_separate }} </p>
+
+                    <a href="{{ url_for('product_detail', product_id=index) }}" class="block text-center w-full px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-indigo-700 transition duration-150 mt-auto">
+                        View Details
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% else %}
+        <div class="text-center p-8 bg-white rounded-xl shadow-lg border border-gray-100">
+            <svg class="star-icon w-12 h-12 mx-auto text-primary mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <p class="text-xl font-semibold text-gray-700">Ready to find something new?</p>
+            <p class="text-gray-500 mt-2">Enter a product name or description above to see personalized recommendations.</p>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <p class="text-center text-sm">© 2025 SmartRecs.io - AI-Powered Product Discovery</p>
+        </div>
+    </footer>
+
+    <div id="signupModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+            <h5 class="text-2xl font-bold mb-4 text-gray-900">Sign Up</h5>
+            <form action="/signup" method="post">
+                <input type="text" name="username" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-primary focus:border-primary" placeholder="Username" required>
+                <input type="email" name="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-primary focus:border-primary" placeholder="Email" required>
+                <input type="password" name="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:ring-primary focus:border-primary" placeholder="Password" required>
+                <button type="submit" class="w-full py-2 bg-primary text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150">Sign Up</button>
+            </form>
+            <button class="mt-4 text-sm text-gray-500 hover:text-gray-700" onclick="closeModal('#signupModal')">Close</button>
+        </div>
+    </div>
+
+    <div id="signinModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+            <h5 class="text-2xl font-bold mb-4 text-gray-900">Sign In</h5>
+            <form action="/signin" method="post">
+                <input type="text" name="signinUsername" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-primary focus:border-primary" placeholder="Username" required>
+                <input type="password" name="signinPassword" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:ring-primary focus:border-primary" placeholder="Password" required>
+                <button type="submit" class="w-full py-2 bg-primary text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150">Sign In</button>
+            </form>
+            <button class="mt-4 text-sm text-gray-500 hover:text-gray-700" onclick="closeModal('#signinModal')">Close</button>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+            <h5 class="text-2xl font-bold mb-4 text-gray-900">Settings</h5>
+            <h5 class="font-semibold mb-2">Choose Theme:</h5>
+            <div class="flex flex-col space-y-2 mb-4">
+                <label class="flex items-center"><input type="radio" name="theme" value="default" class="mr-2" checked> Default</label>
+                <label class="flex items-center"><input type="radio" name="theme" value="black" class="mr-2"> Black Theme</label>
+                <label class="flex items-center"><input type="radio" name="theme" value="green" class="mr-2"> Green Theme</label>
+            </div>
+            <hr class="mb-4">
+            <h5 class="font-semibold mb-2">Zoom:</h5>
+            <div class="flex gap-4">
+                <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 transition duration-150" id="zoomIn">Zoom In</button>
+                <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 transition duration-150" id="zoomOut">Zoom Out</button>
+            </div>
+            <button class="mt-6 text-sm text-gray-500 hover:text-gray-700" onclick="closeModal('#settingsModal')">Close</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const openButtons = document.querySelectorAll('[data-modal-target]');
+            openButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const modalId = button.getAttribute('data-modal-target');
+                    const modal = document.querySelector(modalId);
+                    if (modal) {
+                        modal.classList.add('modal-active');
+                    }
+                });
+            });
+
+            window.closeModal = (modalSelector) => {
+                const modal = document.querySelector(modalSelector);
+                if (modal) {
+                    modal.classList.remove('modal-active');
+                }
+            };
+
+            // Close modal when clicking outside (on the overlay)
+            document.querySelectorAll('.fixed.inset-0').forEach(overlay => {
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        overlay.classList.remove('modal-active');
+                    }
+                });
+            });
+
+            // Handle the original settings link which used jQuery
+            const settingsLink = document.getElementById('settingsLink');
+            if (settingsLink) {
+                settingsLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    document.getElementById('settingsModal').classList.add('modal-active');
+                });
+            }
+        });
+    </script>
+</body>
+</html>
